@@ -11,6 +11,8 @@ const commands = [];
 const commandsPath = join(__dirname, 'commands');
 const commandFiles = readdirSync(commandsPath).filter(file => file.endsWith('.ts'));
 
+logger.info(`Found ${commandFiles.length} command files to process`);
+
 // Grab the SlashCommandBuilder#toJSON() output of each command's data for deployment
 for (const file of commandFiles) {
     try {
@@ -23,8 +25,9 @@ for (const file of commandFiles) {
         }
 
         if ('data' in command && 'execute' in command) {
-            commands.push(command.data.toJSON());
-            logger.info(`Loaded command: ${command.data.name}`);
+            const commandData = command.data.toJSON();
+            commands.push(commandData);
+            logger.info(`Loaded command: ${commandData.name} with description: ${commandData.description}`);
         } else {
             logger.warn(`The command at ${filePath} is missing a required "data" or "execute" property.`);
         }
@@ -48,6 +51,7 @@ if (!clientId) {
 }
 
 logger.info(`Found ${commands.length} commands to deploy`);
+logger.info(`Using Client ID: ${clientId}`);
 
 const rest = new REST().setToken(token);
 
@@ -63,6 +67,7 @@ const rest = new REST().setToken(token);
         );
 
         logger.info(`Successfully reloaded ${(data as any[]).length} application (/) commands.`);
+        logger.info('Deployed commands:', (data as any[]).map(cmd => `${cmd.name}: ${cmd.description}`));
     } catch (error) {
         logger.error('Error deploying commands:', error);
         process.exit(1);
