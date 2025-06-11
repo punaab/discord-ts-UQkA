@@ -1,25 +1,34 @@
 {
-  "name": "discord-ts",
+  "name": "fruit-picker-bot",
   "version": "1.0.0",
-  "description": "Railway Template for a Discord bot using typescript",
-  "main": "index.js",
+  "description": "A fun Discord bot where players pick, collect, and sell fruits to earn currency and unlock upgrades",
+  "main": "dist/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon --exec ts-node src/index.ts",
     "start": "npm run build && node dist/index.js",
-    "build": "tsc"
+    "build": "tsc",
+    "lint": "eslint . --ext .ts"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@types/node": "^18.15.11",
+    "@types/node": "^18.19.111",
+    "@typescript-eslint/eslint-plugin": "^5.59.0",
+    "@typescript-eslint/parser": "^5.59.0",
+    "eslint": "^8.38.0",
+    "nodemon": "^2.0.22",
     "ts-node": "^10.9.1",
     "typescript": "^5.0.4"
   },
   "dependencies": {
+    "@types/mongoose": "^5.11.96",
+    "@types/node-cron": "^3.0.11",
+    "@types/winston": "^2.4.4",
     "discord.js": "^14.9.0",
     "dotenv": "^16.0.3",
-    "eslint": "^8.38.0",
-    "nodemon": "^2.0.22"
+    "moment": "^2.29.4",
+    "mongoose": "^7.0.3",
+    "node-cron": "^3.0.2",
+    "winston": "^3.8.2"
   }
 }

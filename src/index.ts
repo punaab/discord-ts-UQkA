@@ -2,66 +2,72 @@ import {
     Client,
     Events,
     GatewayIntentBits,
-    SlashCommandBuilder,
     Partials,
-    REST,
-    Routes,
     Collection
 } from "discord.js";
-import type { SlashCommand } from "./types";
 import { join } from "path";
 import { readdirSync } from "fs";
-import dotenv from "dotenv";
-dotenv.config();
-import testCommand from "./slashCommands/ping";
+import { config } from 'dotenv';
+import { Command } from './types/Command';
+import { connectDatabase } from './database/connection';
+import { setupEventHandlers } from './events';
+import { setupCronJobs } from './cron';
+import { logger } from './utils/logger';
 
-const token = process.env.DISCORD_TOKEN; // Token from Railway Env Variable.
-const client_id = process.env.CLIENT_ID;
+// Load environment variables
+config();
+
+const token = process.env.DISCORD_TOKEN;
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMembers,
     ],
     partials: [Partials.Channel],
 });
-client.once(Events.ClientReady, async (c) => {
-    console.log(`Logged in as ${c.user.tag}`);
-});
-console.log("jweqioweqeqww");
 
-const slashCommands = new Collection<string, SlashCommand>()
-slashCommands.set(testCommand.command.name, testCommand)
-const slashCommandsArr: SlashCommandBuilder[] = [testCommand.command]
+// Command collection
+client.commands = new Collection<string, Command>();
 
-const rest = new REST({ version: "10" }).setToken(token);
-rest.put(Routes.applicationCommands(client_id), {
-    body: slashCommandsArr.map(command => command.toJSON())
-}).then((data: any) => {
-    console.log(`🔥 Successfully loaded ${data.length} slash command(s)`)
-}).catch(e => {
-    console.log(e)
-});
+// Load commands
+const commandsPath = join(__dirname, 'commands');
+const commandFiles = readdirSync(commandsPath).filter(file => file.endsWith('.ts'));
 
-client.on(Events.InteractionCreate, async interaction => {
-    if (!interaction.isChatInputCommand()) return;
-    const command = slashCommands.get(interaction.commandName);
-
-    if (!command) {
-        console.error(`No command matching ${interaction.commandName} was found.`);
-        return;
+for (const file of commandFiles) {
+    const filePath = join(commandsPath, file);
+    const command = require(filePath);
+    if ('data' in command && 'execute' in command) {
+        client.commands.set(command.data.name, command);
+    } else {
+        logger.warn(`The command at ${filePath} is missing a required "data" or "execute" property.`);
     }
+}
 
+// Initialize bot
+async function initialize() {
     try {
-        await command.execute(interaction);
+        // Connect to database
+        await connectDatabase();
+        logger.info('Connected to database');
+
+        // Setup event handlers
+        setupEventHandlers(client);
+        logger.info('Event handlers setup complete');
+
+        // Setup cron jobs
+        setupCronJobs(client);
+        logger.info('Cron jobs setup complete');
+
+        // Login to Discord
+        await client.login(token);
+        logger.info('Bot logged in successfully');
     } catch (error) {
-        console.error(error);
-        if (interaction.replied || interaction.deferred) {
-            await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true });
-        } else {
-            await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
-        }
+        logger.error('Error during initialization:', error);
+        process.exit(1);
     }
-});
-client
-    .login(token)
-    .catch((error) => console.error("Discord.Client.Login.Error", error));
+}
+
+// Start the bot
+initialize();
