@@ -19,6 +19,7 @@ const userSchema = new mongoose.Schema({
   lastPick: { type: Date },
   lastDaily: { type: Date },
   lastSteal: { type: Date },
+  dailyStreak: { type: Number, default: 0 },
   roles: [String],
   upgrades: {
     basketCapacity: { type: Number, default: 1 },
