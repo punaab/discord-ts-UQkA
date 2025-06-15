@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "nodemon --exec ts-node src/index.ts",
     "start": "npm run build && node dist/index.js",
-    "build": "tsc",
+    "build": "tsc && npm run copy-assets",
+    "copy-assets": "copyfiles -u 1 src/images/**/* dist/",
     "lint": "eslint . --ext .ts",
     "deploy": "ts-node src/deploy-commands.ts"
   },
@@ -16,6 +17,7 @@
     "@types/node": "^18.19.111",
     "@typescript-eslint/eslint-plugin": "^5.59.0",
     "@typescript-eslint/parser": "^5.59.0",
+    "copyfiles": "^2.4.1",
     "eslint": "^8.38.0",
     "nodemon": "^2.0.22",
     "ts-node": "^10.9.1",
