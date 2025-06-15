@@ -2,7 +2,9 @@ import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from '
 import { Command } from '../types/Command';
 import { UserModel } from '../models/User';
 import { FruitModel } from '../models/Fruit';
+import { QuestModel } from '../models/Quest';
 import { logger } from '../utils/logger';
+import { join } from 'path';
 
 const FRUITS = [
   { name: '🍎 Apple', rarity: 'common', baseValue: 10 },
@@ -23,6 +25,8 @@ const RARITY_WEIGHTS = {
   legendary: 0.025,
   mythic: 0.005,
 };
+
+const FRUIT_BANK_IMAGE = join(__dirname, '..', 'images', 'fruitbank.jpg');
 
 export const command: Command = {
   data: new SlashCommandBuilder()
@@ -144,8 +148,26 @@ export const command: Command = {
       if (levelUp) {
         user.level = newLevel;
       }
-      
-      await user.save();
+
+      // Update quest progress
+      const activeQuests = await QuestModel.find({
+        userId: interaction.user.id,
+        completed: false,
+        expiresAt: { $gt: new Date() }
+      });
+
+      const questUpdates = activeQuests.map(quest => {
+        if (quest.name.includes('Pick') || quest.name.includes('Collect')) {
+          quest.progress += pickedFruits.length;
+          if (quest.progress >= quest.target) {
+            quest.completed = true;
+          }
+          return quest.save();
+        }
+        return Promise.resolve();
+      });
+
+      await Promise.all([user.save(), ...questUpdates]);
 
       // Create embed
       const embed = new EmbedBuilder()
@@ -158,6 +180,15 @@ export const command: Command = {
           { name: 'Current Level', value: `Level ${user.level}` }
         );
 
+      // Add quest progress to embed
+      const completedQuests = activeQuests.filter(q => q.completed && !q.claimed);
+      if (completedQuests.length > 0) {
+        embed.addFields({
+          name: '🎯 Completed Quests',
+          value: completedQuests.map(q => `**${q.name}** - ${q.reward.coins} coins, ${q.reward.gems} gems, ${q.reward.xp} XP`).join('\n')
+        });
+      }
+
       if (levelUp) {
         embed.addFields({
           name: '🎉 Level Up!',
@@ -169,7 +200,10 @@ export const command: Command = {
         text: `Next pick available in ${Math.ceil(cooldown / 1000 / 60)} minutes` 
       });
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply({
+        embeds: [embed],
+        files: [FRUIT_BANK_IMAGE]
+      });
     } catch (error) {
       logger.error('Error in pick command:', error);
       await interaction.reply({
